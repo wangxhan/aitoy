@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设计师确认 · 潮偶工坊</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header" data-header></header>
+
+  <section class="section container">
+    <div class="progress-steps">
+      <div class="progress-step done"><div class="progress-dot">✓</div><span>选款定制</span></div>
+      <div class="progress-step active"><div class="progress-dot">2</div><span>设计师确认</span></div>
+      <div class="progress-step"><div class="progress-dot">3</div><span>支付</span></div>
+      <div class="progress-step"><div class="progress-dot">4</div><span>交付</span></div>
+    </div>
+
+    <div class="wizard-layout" id="mainContent"></div>
+  </section>
+
+  <footer class="site-footer" data-footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    const orderId = getParam("order");
+    let order = getOrder(orderId);
+
+    if (!order) {
+      document.getElementById("mainContent").innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1;">
+          <div class="emoji">🔍</div>
+          <h3>未找到订单</h3>
+          <p style="margin:16px 0;"><a href="catalog.html" class="btn btn-primary">去挑选玩具</a></p>
+        </div>`;
+    }
+
+    function simulateDesignerReply() {
+      if (order.status !== "submitted") return;
+      advanceOrder(orderId, "designing");
+      order = getOrder(orderId);
+
+      setTimeout(() => {
+        const toy = getToyById(order.toyId);
+        updateOrder(orderId, {
+          status: "confirmed",
+          designPreview: order.images[0] || null,
+          designNote: `您好！我是设计师小林。已根据您上传的 ${order.images.length} 张参考图完成 3D 样稿。\n\n· 主色：${order.color}\n· 玩具：${toy.name}\n· 定制说明：${order.note || "（无额外说明）"}\n\n请确认样稿，满意后即可进入支付环节。如需修改请在下方备注。`,
+          timeline: [...order.timeline, { stage: "designing", at: new Date().toISOString() }, { stage: "confirmed", at: new Date().toISOString() }]
+        });
+        order = getOrder(orderId);
+        render();
+        toast("设计师已回复样稿！", "success");
+      }, 2500);
+    }
+
+    function render() {
+      order = getOrder(orderId);
+      const toy = getToyById(order.toyId);
+      const isWaiting = order.status === "submitted" || order.status === "designing";
+      const isConfirmed = order.status === "confirmed" || ["paid","production","shipped","delivered"].includes(order.status);
+
+      document.getElementById("mainContent").innerHTML = `
+        <div class="form-panel">
+          <h2 style="font-family:var(--font-display);margin-bottom:8px;">设计师沟通</h2>
+          <p style="color:var(--muted);margin-bottom:24px;">订单号：<span class="order-id">${order.id}</span></p>
+
+          ${isWaiting ? `
+            <div class="design-preview-box" id="waitingBox">
+              <div class="emoji">🎨</div>
+              <h3>设计师正在审阅您的参考图…</h3>
+              <p style="color:var(--muted);margin-top:8px;">通常在 24 小时内出样稿，请稍候</p>
+              <div style="margin-top:20px;font-size:32px;animation:pulse 1.5s infinite;">⏳</div>
+            </div>
+          ` : ""}
+
+          ${isConfirmed ? `
+            <div class="design-preview-box">
+              <div class="emoji">${toy.emoji}</div>
+              <p style="font-weight:600;">3D 样稿预览（基于您的参考图）</p>
+              ${order.designPreview ? `<img src="${order.designPreview}" alt="样稿" style="max-height:200px;margin:16px auto;border-radius:12px;">` : ""}
+            </div>
+            <div class="chat-bubble designer">
+              <div class="author">🎨 设计师小林</div>
+              <p style="white-space:pre-line;">${order.designNote}</p>
+            </div>
+            ${order.status === "confirmed" ? `
+              <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-lg" id="confirmBtn">✅ 确认样稿，去支付</button>
+                <button class="btn btn-secondary" id="reviseBtn">✏️ 请求修改</button>
+              </div>
+            ` : `<p style="color:var(--mint);font-weight:600;">✅ 样稿已确认</p>`}
+          ` : ""}
+
+          <h3 style="margin-top:32px;font-size:15px;">您上传的参考图</h3>
+          <div class="upload-preview" style="margin-top:12px;">
+            ${order.images.map(img => `<div class="upload-thumb"><img src="${img}" alt="参考图"></div>`).join("")}
+          </div>
+        </div>
+
+        <div class="order-summary">
+          <div class="summary-emoji">${toy.emoji}</div>
+          <h3>${order.toyName}</h3>
+          <div class="summary-row"><span>基础款</span><span>${formatPrice(order.pricing.base)}</span></div>
+          ${order.options.map(k => `<div class="summary-row"><span>${CUSTOM_OPTIONS[k]?.label || k}</span><span>+${formatPrice(CUSTOM_OPTIONS[k]?.price || 0)}</span></div>`).join("")}
+          <div class="summary-row total"><span>合计</span><span>${formatPrice(order.pricing.total)}</span></div>
+          <p class="form-hint" style="margin-top:16px;">联系人：${order.customer.name}<br>${order.customer.phone}</p>
+        </div>
+      `;
+
+      if (order.status === "confirmed") {
+        document.getElementById("confirmBtn")?.addEventListener("click", () => {
+          location.href = `checkout.html?order=${orderId}`;
+        });
+        document.getElementById("reviseBtn")?.addEventListener("click", () => {
+          const msg = prompt("请描述需要修改的地方：");
+          if (msg) {
+            updateOrder(orderId, { status: "designing", designNote: order.designNote + "\n\n【修改请求】" + msg });
+            toast("修改请求已发送给设计师", "success");
+            simulateDesignerReply();
+          }
+        });
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (!order) return;
+      render();
+      if (order.status === "submitted") simulateDesignerReply();
+    });
+  </script>
+  <style>@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }</style>
+</body>
+</html>

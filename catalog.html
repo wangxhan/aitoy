@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>挑选玩具 · 潮偶工坊</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header" data-header></header>
+
+  <section class="section container">
+    <h1 class="section-title">挑选你的玩具</h1>
+    <p class="section-sub">8 款 AI 可定制系列，选中后进入个性化定制流程</p>
+
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-btn active" data-cat="全部">全部</button>
+      <button class="filter-btn" data-cat="毛绒">毛绒</button>
+      <button class="filter-btn" data-cat="手办">手办</button>
+      <button class="filter-btn" data-cat="机器人">机器人</button>
+    </div>
+
+    <div class="toy-grid" id="toyGrid"></div>
+  </section>
+
+  <footer class="site-footer" data-footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    let currentCat = "全部";
+
+    function renderToys() {
+      const filtered = currentCat === "全部" ? TOYS : TOYS.filter(t => t.category === currentCat);
+      document.getElementById("toyGrid").innerHTML = filtered.map(toy => `
+        <div class="toy-card">
+          <div class="toy-card-thumb">${toy.emoji}</div>
+          <div class="toy-card-body">
+            <span class="tag">${toy.category}</span>
+            <h3>${toy.name}</h3>
+            <p style="font-size:13px;color:var(--muted);margin:8px 0;">${toy.desc}</p>
+            <div class="toy-tags">${toy.tags.map(t => `<span class="tag">${t}</span>`).join("")}</div>
+            <div class="toy-card-meta">
+              <div>
+                <span class="toy-price">${formatPrice(toy.basePrice)}</span>
+                <span style="font-size:12px;color:var(--muted);"> · ${toy.leadDays}天工期</span>
+              </div>
+              <a href="customize.html?toy=${toy.id}" class="btn btn-primary btn-sm">立即定制</a>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderToys();
+      $$(".filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          $$(".filter-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentCat = btn.dataset.cat;
+          renderToys();
+        });
+      });
+    });
+  </script>
+</body>
+</html>

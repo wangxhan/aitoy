@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个性化定制 · 潮偶工坊</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header" data-header></header>
+
+  <section class="section container">
+    <div class="progress-steps">
+      <div class="progress-step active"><div class="progress-dot">1</div><span>选款定制</span></div>
+      <div class="progress-step"><div class="progress-dot">2</div><span>设计师确认</span></div>
+      <div class="progress-step"><div class="progress-dot">3</div><span>支付</span></div>
+      <div class="progress-step"><div class="progress-dot">4</div><span>交付</span></div>
+    </div>
+
+    <div class="wizard-layout">
+      <div class="form-panel">
+        <h2 style="font-family:var(--font-display);margin-bottom:24px;" id="pageTitle">个性化定制</h2>
+
+        <div class="form-group">
+          <label>主色调</label>
+          <div class="color-picker" id="colorPicker"></div>
+        </div>
+
+        <div class="form-group">
+          <label>增值选项</label>
+          <div class="option-list" id="optionList"></div>
+        </div>
+
+        <div class="form-group">
+          <label>上传参考图（最多 5 张）</label>
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="fileInput" accept="image/*" multiple>
+            <p style="font-size:32px;margin-bottom:8px;">📷</p>
+            <p><b>点击或拖拽图片到此处</b></p>
+            <p class="form-hint">发送给设计师的参考图：照片、插画、配色灵感等</p>
+          </div>
+          <div class="upload-preview" id="uploadPreview"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="note">定制说明</label>
+          <textarea id="note" placeholder="描述你想要的最终样态：表情、姿势、文字刺绣、特殊细节等…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="contactName">联系人</label>
+          <input type="text" id="contactName" placeholder="您的姓名">
+        </div>
+        <div class="form-group">
+          <label for="contactPhone">手机号</label>
+          <input type="tel" id="contactPhone" placeholder="用于设计师沟通与物流通知">
+        </div>
+
+        <button class="btn btn-primary btn-lg btn-block" id="submitBtn">📨 提交给设计师确认</button>
+      </div>
+
+      <div class="order-summary" id="orderSummary"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer" data-footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    const toyId = getParam("toy");
+    const toy = getToyById(toyId);
+    let selectedColor = "";
+    let selectedOptions = [];
+    let uploadedImages = [];
+
+    if (!toy) {
+      location.href = "catalog.html";
+    }
+
+    function calcTotal() {
+      let total = toy.basePrice;
+      selectedOptions.forEach(k => { total += CUSTOM_OPTIONS[k].price; });
+      return total;
+    }
+
+    function renderSummary() {
+      document.getElementById("orderSummary").innerHTML = `
+        <div class="summary-emoji">${toy.emoji}</div>
+        <h3>${toy.name}</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">${toy.category} · 预计 ${toy.leadDays} 天</p>
+        <div class="summary-row"><span>基础款</span><span>${formatPrice(toy.basePrice)}</span></div>
+        ${selectedOptions.map(k => `<div class="summary-row"><span>${CUSTOM_OPTIONS[k].label}</span><span>+${formatPrice(CUSTOM_OPTIONS[k].price)}</span></div>`).join("")}
+        <div class="summary-row"><span>参考图</span><span>${uploadedImages.length} 张</span></div>
+        <div class="summary-row total"><span>预估合计</span><span>${formatPrice(calcTotal())}</span></div>
+        <p class="form-hint" style="margin-top:12px;">最终价格在设计师确认样稿后锁定，确认前无需付款。</p>
+      `;
+    }
+
+    function renderColors() {
+      const picker = document.getElementById("colorPicker");
+      picker.innerHTML = toy.colors.map((c, i) =>
+        `<div class="color-swatch ${i === 0 ? 'selected' : ''}" style="background:${c}" data-color="${c}"></div>`
+      ).join("");
+      selectedColor = toy.colors[0];
+      $$(".color-swatch").forEach(sw => {
+        sw.addEventListener("click", () => {
+          $$(".color-swatch").forEach(s => s.classList.remove("selected"));
+          sw.classList.add("selected");
+          selectedColor = sw.dataset.color;
+        });
+      });
+    }
+
+    function renderOptions() {
+      document.getElementById("optionList").innerHTML = Object.entries(CUSTOM_OPTIONS)
+        .filter(([k]) => k !== "imageUpload")
+        .map(([key, opt]) => `
+          <label class="option-item">
+            <input type="checkbox" value="${key}" ${selectedOptions.includes(key) ? "checked" : ""}>
+            <div class="option-item-info">
+              <div>${opt.label}</div>
+            </div>
+            <span class="option-item-price">+${formatPrice(opt.price)}</span>
+          </label>
+        `).join("");
+
+      $$("#optionList input").forEach(inp => {
+        inp.addEventListener("change", () => {
+          if (inp.checked) selectedOptions.push(inp.value);
+          else selectedOptions = selectedOptions.filter(k => k !== inp.value);
+          renderSummary();
+        });
+      });
+    }
+
+    function renderPreviews() {
+      document.getElementById("uploadPreview").innerHTML = uploadedImages.map((img, i) => `
+        <div class="upload-thumb">
+          <img src="${img}" alt="参考图">
+          <button type="button" onclick="removeImage(${i})" aria-label="删除">×</button>
+        </div>
+      `).join("");
+      renderSummary();
+    }
+
+    window.removeImage = function(idx) {
+      uploadedImages.splice(idx, 1);
+      renderPreviews();
+    };
+
+    function handleFiles(files) {
+      const remaining = 5 - uploadedImages.length;
+      Array.from(files).slice(0, remaining).forEach(file => {
+        if (!file.type.startsWith("image/")) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          uploadedImages.push(e.target.result);
+          renderPreviews();
+        };
+        reader.readAsDataURL(file);
+      });
+      if (files.length > remaining) toast("最多上传 5 张参考图", "info");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("pageTitle").textContent = `定制 · ${toy.name}`;
+      renderColors();
+      renderOptions();
+      renderSummary();
+
+      const zone = document.getElementById("uploadZone");
+      const input = document.getElementById("fileInput");
+      zone.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => handleFiles(input.files));
+      zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("dragover"); });
+      zone.addEventListener("dragleave", () => zone.classList.remove("dragover"));
+      zone.addEventListener("drop", e => {
+        e.preventDefault();
+        zone.classList.remove("dragover");
+        handleFiles(e.dataTransfer.files);
+      });
+
+      document.getElementById("submitBtn").addEventListener("click", () => {
+        const name = document.getElementById("contactName").value.trim();
+        const phone = document.getElementById("contactPhone").value.trim();
+        const note = document.getElementById("note").value.trim();
+
+        if (!name || !phone) { toast("请填写联系人和手机号", "info"); return; }
+        if (uploadedImages.length === 0) { toast("请至少上传 1 张参考图给设计师", "info"); return; }
+
+        const draft = {
+          toyId, color: selectedColor, options: selectedOptions,
+          images: uploadedImages, note,
+          customer: { name, phone }
+        };
+        saveDraft(draft);
+
+        const order = createOrderFromDraft(draft);
+        const orders = loadOrders();
+        orders.unshift(order);
+        saveOrders(orders);
+        clearDraft();
+
+        toast("已提交！设计师将在 24 小时内回复", "success");
+        setTimeout(() => location.href = `design-review.html?order=${order.id}`, 800);
+      });
+    });
+  </script>
+</body>
+</html>

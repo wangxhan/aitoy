@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>支付 · 潮偶工坊</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header" data-header></header>
+
+  <section class="section container">
+    <div class="progress-steps">
+      <div class="progress-step done"><div class="progress-dot">✓</div><span>选款定制</span></div>
+      <div class="progress-step done"><div class="progress-dot">✓</div><span>设计师确认</span></div>
+      <div class="progress-step active"><div class="progress-dot">3</div><span>支付</span></div>
+      <div class="progress-step"><div class="progress-dot">4</div><span>交付</span></div>
+    </div>
+
+    <div class="wizard-layout" id="mainContent"></div>
+  </section>
+
+  <footer class="site-footer" data-footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    const orderId = getParam("order");
+    let order = getOrder(orderId);
+
+    function render() {
+      if (!order) {
+        document.getElementById("mainContent").innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1;">
+            <div class="emoji">🔍</div><h3>订单不存在</h3>
+            <a href="catalog.html" class="btn btn-primary" style="margin-top:16px;">返回目录</a>
+          </div>`;
+        return;
+      }
+
+      if (order.status === "submitted" || order.status === "designing") {
+        location.href = `design-review.html?order=${orderId}`;
+        return;
+      }
+
+      const toy = getToyById(order.toyId);
+      const alreadyPaid = ["paid","production","shipped","delivered"].includes(order.status);
+
+      document.getElementById("mainContent").innerHTML = `
+        <div class="form-panel">
+          <h2 style="font-family:var(--font-display);margin-bottom:24px;">${alreadyPaid ? "支付成功" : "确认并支付"}</h2>
+          <p style="color:var(--muted);margin-bottom:24px;">订单号：${order.id}</p>
+
+          ${alreadyPaid ? `
+            <div style="text-align:center;padding:32px;background:#ecfdf5;border-radius:var(--radius);margin-bottom:24px;">
+              <div style="font-size:48px;">✅</div>
+              <h3 style="color:#059669;margin-top:12px;">支付已完成</h3>
+              <p style="color:var(--muted);margin-top:8px;">您的玩具已进入生产排期</p>
+              <a href="orders.html?id=${orderId}" class="btn btn-primary" style="margin-top:20px;">查看物流进度</a>
+            </div>
+          ` : `
+            <div class="form-group">
+              <label>收货地址</label>
+              <input type="text" id="address" placeholder="省市区 + 详细地址">
+            </div>
+            <div class="form-group">
+              <label>支付方式</label>
+              <div class="payment-methods">
+                <label class="payment-method">
+                  <input type="radio" name="pay" value="wechat" checked>
+                  <span class="payment-icon">💚</span>
+                  <span>微信支付</span>
+                </label>
+                <label class="payment-method">
+                  <input type="radio" name="pay" value="alipay">
+                  <span class="payment-icon">💙</span>
+                  <span>支付宝</span>
+                </label>
+              </div>
+              <p class="form-hint">演示站点：点击支付将模拟成功，无需真实付款</p>
+            </div>
+            <button class="btn btn-accent btn-lg btn-block" id="payBtn">💳 支付 ${formatPrice(order.pricing.total)}</button>
+          `}
+        </div>
+
+        <div class="order-summary">
+          <div class="summary-emoji">${toy.emoji}</div>
+          <h3>${order.toyName}</h3>
+          <div class="summary-row"><span>基础款</span><span>${formatPrice(order.pricing.base)}</span></div>
+          ${order.options.map(k => `<div class="summary-row"><span>${CUSTOM_OPTIONS[k]?.label}</span><span>+${formatPrice(CUSTOM_OPTIONS[k]?.price || 0)}</span></div>`).join("")}
+          <div class="summary-row total"><span>应付金额</span><span>${formatPrice(order.pricing.total)}</span></div>
+        </div>
+      `;
+
+      document.getElementById("payBtn")?.addEventListener("click", () => {
+        const address = document.getElementById("address").value.trim();
+        if (!address) { toast("请填写收货地址", "info"); return; }
+
+        const payMethod = document.querySelector('input[name="pay"]:checked').value;
+        updateOrder(orderId, {
+          status: "paid",
+          shipping: { address, method: payMethod, trackingNo: null },
+          timeline: [...order.timeline, { stage: "paid", at: new Date().toISOString() }]
+        });
+
+        toast("支付成功！正在安排生产…", "success");
+
+        setTimeout(() => advanceOrder(orderId, "production"), 1500);
+        setTimeout(() => {
+          const tracking = "SF" + Date.now().toString().slice(-10);
+          updateOrder(orderId, {
+            status: "shipped",
+            shipping: { address, method: payMethod, trackingNo: tracking },
+            timeline: [...getOrder(orderId).timeline, { stage: "production", at: new Date().toISOString() }, { stage: "shipped", at: new Date().toISOString() }]
+          });
+        }, 4000);
+
+        setTimeout(() => location.href = `orders.html?id=${orderId}`, 2000);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", render);
+  </script>
+</body>
+</html>

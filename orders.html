@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的订单 · 潮偶工坊</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header" data-header></header>
+
+  <section class="section container">
+    <h1 class="section-title">我的订单</h1>
+    <p class="section-sub">追踪定制进度，从设计确认到签收交付</p>
+    <div class="order-list" id="orderList"></div>
+  </section>
+
+  <footer class="site-footer" data-footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    const STATUS_LABELS = {
+      submitted: "待设计师接单",
+      designing: "设计中",
+      confirmed: "待支付",
+      paid: "已付款",
+      production: "生产中",
+      shipped: "已发货",
+      delivered: "已交付"
+    };
+
+    function renderTimeline(order) {
+      const stageIndex = ORDER_STAGES.findIndex(s => s.key === order.status);
+      return ORDER_STAGES.map((stage, i) => {
+        const done = i <= stageIndex;
+        const current = i === stageIndex;
+        return `
+          <div class="timeline-item ${done ? 'done' : ''} ${current ? 'current' : ''}">
+            <div class="timeline-dot">${done ? stage.icon : i + 1}</div>
+            <div class="timeline-label">${stage.label}</div>
+          </div>`;
+      }).join("");
+    }
+
+    function renderOrders() {
+      const orders = loadOrders();
+      const highlightId = getParam("id");
+      const container = document.getElementById("orderList");
+
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="emoji">📭</div>
+            <h3>暂无订单</h3>
+            <p style="margin:16px 0 24px;">挑选一款玩具，开始你的定制之旅</p>
+            <a href="catalog.html" class="btn btn-primary">去挑选玩具</a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(order => {
+        const isHighlight = order.id === highlightId;
+        const toy = getToyById(order.toyId);
+        return `
+          <div class="order-card" style="${isHighlight ? 'border-color:var(--primary);box-shadow:var(--shadow);' : ''}">
+            <div class="order-card-header">
+              <div>
+                <span class="order-id">${order.id}</span>
+                <span style="font-size:13px;color:var(--muted);margin-left:12px;">${new Date(order.createdAt).toLocaleString("zh-CN")}</span>
+              </div>
+              <span class="order-status-badge status-${order.status}">${STATUS_LABELS[order.status] || order.status}</span>
+            </div>
+            <div class="order-card-body">
+              <div style="display:flex;gap:16px;align-items:center;margin-bottom:20px;">
+                <span style="font-size:40px;">${order.toyEmoji || toy?.emoji || "🎁"}</span>
+                <div>
+                  <h3 style="font-family:var(--font-display);">${order.toyName}</h3>
+                  <p style="color:var(--muted);font-size:14px;">${formatPrice(order.pricing.total)} · ${order.customer.name}</p>
+                  ${order.shipping?.trackingNo ? `<p style="font-size:13px;margin-top:4px;">📦 运单号：<b>${order.shipping.trackingNo}</b></p>` : ""}
+                </div>
+                <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+                  ${order.status === "confirmed" ? `<a href="checkout.html?order=${order.id}" class="btn btn-primary btn-sm">去支付</a>` : ""}
+                  ${order.status === "submitted" || order.status === "designing" ? `<a href="design-review.html?order=${order.id}" class="btn btn-secondary btn-sm">查看设计</a>` : ""}
+                  ${order.status === "shipped" ? `<button class="btn btn-primary btn-sm" onclick="confirmDelivery('${order.id}')">确认收货</button>` : ""}
+                </div>
+              </div>
+              <div class="timeline">${renderTimeline(order)}</div>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    window.confirmDelivery = function(orderId) {
+      advanceOrder(orderId, "delivered");
+      toast("已确认收货，感谢定制！", "success");
+      renderOrders();
+    };
+
+    document.addEventListener("DOMContentLoaded", renderOrders);
+  </script>
+</body>
+</html>

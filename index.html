@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>潮偶工坊 · AI 玩具个性化定制</title>
+  <meta name="description" content="在线挑选 AI 玩具，上传参考图，设计师确认样稿，付费生产发货。">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header" data-header></header>
+
+  <section class="hero">
+    <div>
+      <span class="hero-badge">✨ AI × 手工 · 每一件都独一无二</span>
+      <h1>把想象变成<br><span>专属 AI 玩具</span></h1>
+      <p class="hero-desc">从毛绒、手办到智能机器人——挑选款式，上传参考图，与设计师确认最终样态，付款后我们负责生产、发货、交付。</p>
+      <div class="hero-actions">
+        <a href="catalog.html" class="btn btn-primary btn-lg">🛍️ 开始挑选玩具</a>
+        <a href="orders.html" class="btn btn-secondary btn-lg">查看我的订单</a>
+      </div>
+    </div>
+    <div class="hero-visual">🎪</div>
+  </section>
+
+  <section class="section container">
+    <h2 class="section-title">定制流程</h2>
+    <p class="section-sub">五步完成，从选款到收货全程可追踪</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>挑选玩具</h3>
+        <p>浏览毛绒、手办、机器人等系列，选择基础款式与配色。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>上传参考图</h3>
+        <p>发送照片、插画或灵感图给设计师，描述你想要的最终样态。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>确认样稿</h3>
+        <p>设计师出 3D 效果图，你在线确认或提出修改，满意后再付款。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <h3>安全支付</h3>
+        <p>支持微信、支付宝，确认样稿后支付，进入生产排期。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">5</div>
+        <h3>生产 & 交付</h3>
+        <p>工厂制作、质检、物流发货，订单页实时追踪直至签收。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container" style="padding-top: 0;">
+    <h2 class="section-title">热门款式</h2>
+    <p class="section-sub">先睹为快，点击进入完整目录</p>
+    <div class="toy-grid" id="featuredToys"></div>
+    <div style="text-align: center; margin-top: 40px;">
+      <a href="catalog.html" class="btn btn-primary">查看全部 8 款 →</a>
+    </div>
+  </section>
+
+  <footer class="site-footer" data-footer></footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const grid = document.getElementById("featuredToys");
+      TOYS.slice(0, 4).forEach(toy => {
+        grid.innerHTML += `
+          <div class="toy-card">
+            <div class="toy-card-thumb">${toy.emoji}</div>
+            <div class="toy-card-body">
+              <span class="tag">${toy.category}</span>
+              <h3>${toy.name}</h3>
+              <p style="font-size:13px;color:var(--muted);margin-top:6px;">${toy.desc.slice(0, 40)}…</p>
+              <div class="toy-card-meta">
+                <span class="toy-price">${formatPrice(toy.basePrice)} 起</span>
+                <a href="customize.html?toy=${toy.id}" class="btn btn-primary btn-sm">定制</a>
+              </div>
+            </div>
+          </div>`;
+      });
+    });
+  </script>
+</body>
+</html>
